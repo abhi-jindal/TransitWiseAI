@@ -72,11 +72,20 @@ st.divider()
 
 
 # ---------------------------------------------------------------------------
-# Load the real station list. If the GTFS files are missing, show a clear
-# message instead of crashing.
+# Load the real station list. On a fresh hosted deploy (Streamlit Cloud), the
+# GTFS files are not in the repo, so we fetch the official MBTA feed once —
+# with a clear loading message — before loading. If anything fails, show a
+# clear message instead of crashing.
 # ---------------------------------------------------------------------------
 try:
-    stations_df = gtfs.get_subway_stations()
+    with st.spinner(
+        "Preparing MBTA schedule data (first launch downloads the official "
+        "GTFS feed — this happens once and then loads fast)…"
+    ):
+        # Download-if-missing happens here, guarded to run at most once; the
+        # spinner is shown while it runs.
+        gtfs.ensure_gtfs_available(status=st.info)
+        stations_df = gtfs.get_subway_stations()
     station_names = stations_df["stop_name"].tolist()
     data_ok = True
 except gtfs.GTFSError as error:
@@ -85,9 +94,10 @@ except gtfs.GTFSError as error:
     st.error("Could not load the MBTA data.")
     st.code(str(error))
     st.info(
-        "Make sure the GTFS files are extracted into the folder: data/gtfs/\n"
-        "(stops.txt, routes.txt, trips.txt, stop_times.txt, calendar.txt, "
-        "calendar_dates.txt, transfers.txt)"
+        "The app downloads the official MBTA GTFS feed automatically on first "
+        "startup (https://cdn.mbta.com/MBTA_GTFS.zip). If this keeps failing, "
+        "the host may be unable to reach cdn.mbta.com. You can also run "
+        "`python download_gtfs.py` to populate data/gtfs/ manually."
     )
 
 

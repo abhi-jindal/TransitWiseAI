@@ -135,14 +135,25 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-### 3. Download the MBTA GTFS data (required — it is not committed)
+### 3. GTFS data (downloaded automatically on first startup)
+
+The MBTA GTFS feed is **not** committed to the repo (it's large and changes
+often). You do **not** have to fetch it manually: the app **automatically
+downloads the official MBTA GTFS feed on first startup** when `data/gtfs/` is
+missing — this is what makes the hosted deployment (Streamlit Community Cloud)
+work from a fresh GitHub clone. A one-time loading message is shown while it
+downloads (~22 MB), then it's cached on disk and subsequent loads are fast. The
+download runs only when the required files are missing, not on every rerun.
+
+If you prefer to pre-populate the data locally (optional), run:
 
 ```powershell
 .\.venv\Scripts\python.exe download_gtfs.py
 ```
 
-This fetches `https://cdn.mbta.com/MBTA_GTFS.zip` and extracts the required
-`.txt` files into `data/gtfs/`.
+Both paths fetch `https://cdn.mbta.com/MBTA_GTFS.zip` (the official MBTA source)
+and extract the required `.txt` files into `data/gtfs/`. If the download fails
+(e.g. no network), the app shows a clear message instead of crashing.
 
 ### 4. (Optional) Rebuild the historical sample
 
@@ -218,12 +229,14 @@ AppTest) and makes live API calls, so it takes a couple of minutes.
 ## Troubleshooting
 
 - **"GTFS folder not found" / missing files:** run
-  `.\.venv\Scripts\python.exe download_gtfs.py`. If the download fails, open
-  `https://cdn.mbta.com/MBTA_GTFS.zip` in a browser to confirm reachability, or
+  the app normally downloads the feed automatically on first startup. If that
+  fails, open `https://cdn.mbta.com/MBTA_GTFS.zip` in a browser to confirm
+  reachability, or run `.\.venv\Scripts\python.exe download_gtfs.py`, or
   download it manually and extract the `.txt` files into `data/gtfs/`.
-- **First load feels slow / seems to hang:** this is the one-time GTFS parse and
-  cache build (15–60s). It is fast afterward. Delete `data/cache/` to force a
-  clean rebuild.
+- **First load feels slow / seems to hang:** the first startup downloads the
+  GTFS feed (~22 MB) if missing, then does a one-time GTFS parse and cache build
+  (15–60s total). It is fast afterward. Delete `data/cache/` to force a clean
+  rebuild.
 - **`streamlit` not recognized:** use `.\.venv\Scripts\python.exe -m streamlit
   run app.py` instead of the bare `streamlit` command.
 - **Live data shows "unavailable":** the MBTA V3 API may be rate-limited,

@@ -53,14 +53,69 @@ def _path(filename: str) -> str:
     return os.path.join(GTFS_DIR, filename)
 
 
-def check_files_exist() -> None:
-    """Raise a clear error if the GTFS folder or any required file is missing."""
+# Guards so we attempt the one-time auto-download at most once per process
+# (not on every Streamlit rerun). After one attempt we remember the outcome.
+_auto_download_attempted = False
+
+
+def _missing_required() -> list[str]:
     if not os.path.isdir(GTFS_DIR):
+        return list(REQUIRED_FILES)
+    return [f for f in REQUIRED_FILES if not os.path.isfile(_path(f))]
+
+
+def ensure_gtfs_available(status=None) -> None:
+    """
+    Make sure the GTFS files are present, downloading the official MBTA feed
+    once if they are missing (e.g. on a fresh Streamlit Cloud clone where
+    data/gtfs/ is git-ignored). This runs at most once per process.
+
+    `status` (optional) is a callable taking a message string, used to show a
+    loading message in the UI while the download runs. On failure it raises
+    GTFSError with a helpful message rather than crashing.
+    """
+    global _auto_download_attempted
+
+    if not _missing_required():
+        return  # already present — nothing to do
+
+    if _auto_download_attempted:
+        # We already tried this process and files are still missing.
         raise GTFSError(
-            f"GTFS folder not found at: {GTFS_DIR}\n"
-            "Make sure the MBTA GTFS files are extracted into data/gtfs/."
+            "GTFS files are not available and the automatic download did not "
+            "produce them. See the logs above for the download error."
         )
-    missing = [f for f in REQUIRED_FILES if not os.path.isfile(_path(f))]
+    _auto_download_attempted = True
+
+    if status:
+        status(
+            "First-time setup: downloading the official MBTA GTFS schedule "
+            "(~a few MB). This happens once; subsequent loads are fast…"
+        )
+
+    try:
+        import download_gtfs
+        download_gtfs.ensure_gtfs(out_dir=GTFS_DIR, log=lambda _m: None)
+    except Exception as exc:  # download_gtfs.GTFSDownloadError or anything else
+        raise GTFSError(
+            "Could not automatically download the MBTA GTFS data.\n\n"
+            f"Reason: {exc}\n\n"
+            "The app needs the official MBTA GTFS feed "
+            "(https://cdn.mbta.com/MBTA_GTFS.zip). On a hosted deployment this "
+            "is fetched automatically on first startup; a failure usually means "
+            "the host could not reach cdn.mbta.com. Try reloading, or run "
+            "`python download_gtfs.py` locally to populate data/gtfs/."
+        ) from exc
+
+
+def check_files_exist() -> None:
+    """
+    Ensure the GTFS folder and required files are present, auto-downloading the
+    official feed once if they are missing. Raises GTFSError with a clear
+    message if the data still cannot be made available.
+    """
+    ensure_gtfs_available()
+    missing = _missing_required()
     if missing:
         raise GTFSError(
             "These required GTFS files are missing from data/gtfs/: "
