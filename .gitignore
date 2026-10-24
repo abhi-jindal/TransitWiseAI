@@ -1,0 +1,29 @@
+# Python virtual environment
+.venv/
+
+# Python caches
+__pycache__/
+*.pyc
+
+# Large raw data: never commit the GTFS feed or raw parquet downloads.
+# The small cleaned historical CSV under data/historical/ IS committed.
+data/gtfs/
+data/MBTA_GTFS.zip
+data/historical/raw/
+
+# Runtime caches / preprocessed artifacts (rebuilt automatically at runtime).
+data/cache/
+*.parquet
+*.pkl
+*.joblib
+
+# Secrets / local environment
+.env
+.env.*
+*.key
+secrets.toml
+
+# OS / editor noise
+.DS_Store
+
+# NOTE: .kiro/ is intentionally NOT ignored so Kiro artifacts can be committed.
